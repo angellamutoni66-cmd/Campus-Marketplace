@@ -205,7 +205,7 @@
         <!-- User Info & Actions -->
         <div class="header-actions">
             <div class="user-info">
-                Signed in as: <strong id="userEmail"></strong>
+                Signed in as: <strong id="userEmail">Guest</strong>
             </div>
             <div class="action-buttons">
                 <button type="button" class="btn btn-outline-secondary" onclick="window.location.href='index.html'">Back to Home</button>
@@ -229,7 +229,8 @@
 
     <script type="module">
         import { onUserReady, getShortlistedItems, removeFromShortlist } from "./app.js";
-        import { signOut, auth } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
+        import { auth } from "./firebase-config.js";
+        import { signOut } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
 
         const container = document.getElementById("shortlistContainer");
         const emptyState = document.getElementById("emptyState");
@@ -245,36 +246,41 @@
 
         // Load Shortlist Items
         onUserReady(async () => {
-            const items = await getShortlistedItems();
+            try {
+                const items = await getShortlistedItems();
 
-            if (items.length === 0) {
+                if (items.length === 0) {
+                    container.innerHTML = '';
+                    emptyState.style.display = 'block';
+                    return;
+                }
+
+                emptyState.style.display = 'none';
                 container.innerHTML = '';
-                emptyState.style.display = 'block';
-                return;
-            }
 
-            emptyState.style.display = 'none';
-            container.innerHTML = '';
+                items.forEach(item => {
+                    const firstImage = item.imageUrls?.[0] || "placeholder.jpg";
+                    const priceDisplay = item.price === 'Trade' ? item.price : `$${item.price}`;
 
-            items.forEach(item => {
-                const firstImage = item.imageUrls?.[0] || "placeholder.jpg";
-                const priceDisplay = item.price === 'Trade' ? item.price : `$${item.price}`;
-
-                container.innerHTML += `
-                    <div class="shortlist-item">
-                        <img src="${firstImage}" alt="${item.productName}">
-                        <div class="item-details">
-                            <div class="item-category">${item.category || 'Uncategorized'}</div>
-                            <h4>${item.productName}</h4>
-                            <p><strong>Description:</strong> ${item.description}</p>
-                            <p><strong>Condition:</strong> ${item.condition}</p>
-                            <p><strong>Seller:</strong> ${item.sellerEmail}</p>
-                            <p class="item-price ${item.price === 'Trade' ? 'trade' : ''}">${priceDisplay}</p>
-                            <button class="remove-btn" onclick="removeShortlistItem('${item.shortlistId}', this)">Remove from Shortlist</button>
+                    container.innerHTML += `
+                        <div class="shortlist-item">
+                            <img src="${firstImage}" alt="${item.productName}">
+                            <div class="item-details">
+                                <div class="item-category">${item.category || 'Uncategorized'}</div>
+                                <h4>${item.productName}</h4>
+                                <p><strong>Description:</strong> ${item.description}</p>
+                                <p><strong>Condition:</strong> ${item.condition}</p>
+                                <p><strong>Seller:</strong> ${item.sellerEmail}</p>
+                                <p class="item-price ${item.price === 'Trade' ? 'trade' : ''}">${priceDisplay}</p>
+                                <button class="remove-btn" onclick="removeShortlistItem('${item.shortlistId}', this)">Remove from Shortlist</button>
+                            </div>
                         </div>
-                    </div>
-                `;
-            });
+                    `;
+                });
+            } catch (error) {
+                console.error("Error loading shortlist:", error);
+                container.innerHTML = '<p class="text-danger">Error loading shortlist. Make sure Firebase is configured.</p>';
+            }
         });
 
         // Remove from Shortlist Function
