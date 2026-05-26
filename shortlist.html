@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Shortlist - Campus Marketplace</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .shortlist-page {
+            background: linear-gradient(to right, #f8f9fa, #e9ecef);
+            min-height: 100vh;
+        }
+
+        .shortlist-container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .logo {
+            width: 50px;
+            height: 50px;
+        }
+
+        .app-name {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #7b1e3a;
+        }
+
+        .header-center {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .page-title {
+            color: #7b1e3a;
+            font-weight: 700;
+        }
+
+        .header-actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .user-info {
+            color: #555;
+            font-size: 0.95rem;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+        }
+
+        .shortlist-item {
+            display: flex;
+            gap: 20px;
+            padding: 18px;
+            border-radius: 14px;
+            background: #ffffff;
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.06);
+            margin-bottom: 20px;
+            align-items: flex-start;
+        }
+
+        .shortlist-item img {
+            width: 160px;
+            height: 160px;
+            object-fit: cover;
+            border-radius: 10px;
+            border: 1px solid #ddd;
+        }
+
+        .item-details {
+            flex: 1;
+        }
+
+        .item-details h4 {
+            margin: 0;
+            font-size: 1.4rem;
+            font-weight: 600;
+            color: #007bff;
+        }
+
+        .item-details p {
+            margin: 6px 0;
+        }
+
+        .item-category {
+            display: inline-block;
+            background-color: #007bff;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            margin-bottom: 10px;
+        }
+
+        .item-price {
+            font-weight: bold;
+            color: #28a745;
+            font-size: 1.1rem;
+        }
+
+        .item-price.trade {
+            color: #e74c3c;
+        }
+
+        .remove-btn {
+            background-color: #dc3545;
+            color: white;
+            padding: 6px 14px;
+            border-radius: 6px;
+            font-size: 14px;
+            border: none;
+            cursor: pointer;
+            margin-top: 12px;
+        }
+
+        .remove-btn:hover {
+            background-color: #b02a37;
+        }
+
+        .remove-btn:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #7f8c8d;
+        }
+
+        .empty-icon {
+            font-size: 4rem;
+            margin-bottom: 20px;
+            color: #bdc3c7;
+        }
+
+        .empty-message {
+            font-size: 1.2rem;
+            margin-bottom: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .shortlist-item {
+                flex-direction: column;
+                text-align: center;
+                align-items: center;
+            }
+
+            .shortlist-item img {
+                width: 200px;
+                height: 200px;
+            }
+
+            .item-details {
+                width: 100%;
+            }
+
+            .header-actions {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .action-buttons {
+                width: 100%;
+                flex-direction: column;
+            }
+
+            .action-buttons button,
+            .action-buttons a {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body class="shortlist-page">
+
+    <div class="shortlist-container">
+        <!-- Header -->
+        <div class="header-left">
+            <img src="images/mq_marketplace_logo.png" alt="Campus Marketplace Logo" class="logo">
+            <span class="app-name">Campus Marketplace</span>
+        </div>
+
+        <div class="header-center">
+            <h1 class="page-title">My Shortlist</h1>
+        </div>
+
+        <!-- User Info & Actions -->
+        <div class="header-actions">
+            <div class="user-info">
+                Signed in as: <strong id="userEmail"></strong>
+            </div>
+            <div class="action-buttons">
+                <button type="button" class="btn btn-outline-secondary" onclick="window.location.href='index.html'">Back to Home</button>
+                <button class="btn btn-outline-danger" id="signOutButton">Sign Out</button>
+            </div>
+        </div>
+
+        <hr>
+
+        <!-- Shortlist Items Container -->
+        <div id="shortlistContainer"></div>
+
+        <!-- Empty State -->
+        <div id="emptyState" class="empty-state" style="display: none;">
+            <div class="empty-icon">📋</div>
+            <div class="empty-message">Your shortlist is empty</div>
+            <p>Start adding items from the Marketplace to your shortlist!</p>
+            <a href="marketplace.html" class="btn btn-primary">Browse Marketplace</a>
+        </div>
+    </div>
+
+    <script type="module">
+        import { onUserReady, getShortlistedItems, removeFromShortlist } from "./app.js";
+        import { signOut, auth } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
+
+        const container = document.getElementById("shortlistContainer");
+        const emptyState = document.getElementById("emptyState");
+
+        // Sign Out Button
+        document.getElementById("signOutButton").addEventListener("click", () => {
+            signOut(auth).then(() => {
+                window.location.href = "login.html";
+            }).catch((error) => {
+                console.error("Sign out error:", error);
+            });
+        });
+
+        // Load Shortlist Items
+        onUserReady(async () => {
+            const items = await getShortlistedItems();
+
+            if (items.length === 0) {
+                container.innerHTML = '';
+                emptyState.style.display = 'block';
+                return;
+            }
+
+            emptyState.style.display = 'none';
+            container.innerHTML = '';
+
+            items.forEach(item => {
+                const firstImage = item.imageUrls?.[0] || "placeholder.jpg";
+                const priceDisplay = item.price === 'Trade' ? item.price : `$${item.price}`;
+
+                container.innerHTML += `
+                    <div class="shortlist-item">
+                        <img src="${firstImage}" alt="${item.productName}">
+                        <div class="item-details">
+                            <div class="item-category">${item.category || 'Uncategorized'}</div>
+                            <h4>${item.productName}</h4>
+                            <p><strong>Description:</strong> ${item.description}</p>
+                            <p><strong>Condition:</strong> ${item.condition}</p>
+                            <p><strong>Seller:</strong> ${item.sellerEmail}</p>
+                            <p class="item-price ${item.price === 'Trade' ? 'trade' : ''}">${priceDisplay}</p>
+                            <button class="remove-btn" onclick="removeShortlistItem('${item.shortlistId}', this)">Remove from Shortlist</button>
+                        </div>
+                    </div>
+                `;
+            });
+        });
+
+        // Remove from Shortlist Function
+        window.removeShortlistItem = async (shortlistId, button) => {
+            if (!confirm("Are you sure you want to remove this item from your shortlist?")) return;
+
+            try {
+                button.disabled = true;
+                button.textContent = 'Removing...';
+
+                await removeFromShortlist(shortlistId);
+
+                // Reload the page
+                location.reload();
+            } catch (error) {
+                console.error("Error removing from shortlist:", error);
+                button.disabled = false;
+                button.textContent = 'Remove from Shortlist';
+                alert("Failed to remove item. Please try again.");
+            }
+        };
+    </script>
+
+</body>
+</html>
