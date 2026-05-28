@@ -156,6 +156,15 @@
             margin-bottom: 20px;
         }
 
+        .firebase-notice {
+            background-color: #fff3cd;
+            border: 1px solid #ffc107;
+            color: #856404;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 20px 0;
+        }
+
         @media (max-width: 768px) {
             .shortlist-item {
                 flex-direction: column;
@@ -215,6 +224,11 @@
 
         <hr>
 
+        <!-- Firebase Notice (shown when not configured) -->
+        <div id="firebaseNotice" class="firebase-notice" style="display: none;">
+            ⚠️ <strong>Firebase Not Configured:</strong> Waiting for Firebase configuration. The design preview is shown above. Once Firebase is set up by your team, this will load your actual shortlist data.
+        </div>
+
         <!-- Shortlist Items Container -->
         <div id="shortlistContainer"></div>
 
@@ -228,12 +242,12 @@
     </div>
 
     <script type="module">
-        import { onUserReady, getShortlistedItems, removeFromShortlist } from "./app.js";
         import { auth } from "./firebase-config.js";
-        import { signOut } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
+        import { signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
 
         const container = document.getElementById("shortlistContainer");
         const emptyState = document.getElementById("emptyState");
+        const firebaseNotice = document.getElementById("firebaseNotice");
 
         // Sign Out Button
         document.getElementById("signOutButton").addEventListener("click", () => {
@@ -244,64 +258,78 @@
             });
         });
 
-        // Load Shortlist Items
-        onUserReady(async () => {
-            try {
-                const items = await getShortlistedItems();
+        // Check Authentication Status
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                // User is logged in
+                document.getElementById("userEmail").textContent = user.email;
+                
+                try {
+                    // Dynamically import app functions
+                    const { getShortlistedItems, removeFromShortlist } = await import("./app.js");
 
-                if (items.length === 0) {
+                    // Load Shortlist Items
+                    const items = await getShortlistedItems();
+
+                    if (items.length === 0) {
+                        container.innerHTML = '';
+                        emptyState.style.display = 'block';
+                        return;
+                    }
+
+                    emptyState.style.display = 'none';
                     container.innerHTML = '';
-                    emptyState.style.display = 'block';
-                    return;
-                }
 
-                emptyState.style.display = 'none';
-                container.innerHTML = '';
+                    items.forEach(item => {
+                        const firstImage = item.imageUrls?.[0] || "placeholder.jpg";
+                        const priceDisplay = item.price === 'Trade' ? item.price : `$${item.price}`;
 
-                items.forEach(item => {
-                    const firstImage = item.imageUrls?.[0] || "placeholder.jpg";
-                    const priceDisplay = item.price === 'Trade' ? item.price : `$${item.price}`;
-
-                    container.innerHTML += `
-                        <div class="shortlist-item">
-                            <img src="${firstImage}" alt="${item.productName}">
-                            <div class="item-details">
-                                <div class="item-category">${item.category || 'Uncategorized'}</div>
-                                <h4>${item.productName}</h4>
-                                <p><strong>Description:</strong> ${item.description}</p>
-                                <p><strong>Condition:</strong> ${item.condition}</p>
-                                <p><strong>Seller:</strong> ${item.sellerEmail}</p>
-                                <p class="item-price ${item.price === 'Trade' ? 'trade' : ''}">${priceDisplay}</p>
-                                <button class="remove-btn" onclick="removeShortlistItem('${item.shortlistId}', this)">Remove from Shortlist</button>
+                        container.innerHTML += `
+                            <div class="shortlist-item">
+                                <img src="${firstImage}" alt="${item.productName}">
+                                <div class="item-details">
+                                    <div class="item-category">${item.category || 'Uncategorized'}</div>
+                                    <h4>${item.productName}</h4>
+                                    <p><strong>Description:</strong> ${item.description}</p>
+                                    <p><strong>Condition:</strong> ${item.condition}</p>
+                                    <p><strong>Seller:</strong> ${item.sellerEmail}</p>
+                                    <p class="item-price ${item.price === 'Trade' ? 'trade' : ''}">${priceDisplay}</p>
+                                    <button class="remove-btn" onclick="removeShortlistItem('${item.shortlistId}', this, '${user.uid}')">Remove from Shortlist</button>
+                                </div>
                             </div>
-                        </div>
-                    `;
-                });
-            } catch (error) {
-                console.error("Error loading shortlist:", error);
-                container.innerHTML = '<p class="text-danger">Error loading shortlist. Make sure Firebase is configured.</p>';
+                        `;
+                    });
+
+                    // Remove from Shortlist Function
+                    window.removeShortlistItem = async (shortlistId, button, userId) => {
+                        if (!confirm("Are you sure you want to remove this item from your shortlist?")) return;
+
+                        try {
+                            button.disabled = true;
+                            button.textContent = 'Removing...';
+
+                            await removeFromShortlist(shortlistId);
+
+                            // Reload the page
+                            location.reload();
+                        } catch (error) {
+                            console.error("Error removing from shortlist:", error);
+                            button.disabled = false;
+                            button.textContent = 'Remove from Shortlist';
+                            alert("Failed to remove item. Please try again.");
+                        }
+                    };
+
+                } catch (error) {
+                    console.error("Error loading shortlist:", error);
+                    firebaseNotice.style.display = 'block';
+                    container.innerHTML = '';
+                }
+            } else {
+                // User is not logged in - redirect to login
+                window.location.href = "login.html";
             }
         });
-
-        // Remove from Shortlist Function
-        window.removeShortlistItem = async (shortlistId, button) => {
-            if (!confirm("Are you sure you want to remove this item from your shortlist?")) return;
-
-            try {
-                button.disabled = true;
-                button.textContent = 'Removing...';
-
-                await removeFromShortlist(shortlistId);
-
-                // Reload the page
-                location.reload();
-            } catch (error) {
-                console.error("Error removing from shortlist:", error);
-                button.disabled = false;
-                button.textContent = 'Remove from Shortlist';
-                alert("Failed to remove item. Please try again.");
-            }
-        };
     </script>
 
 </body>
